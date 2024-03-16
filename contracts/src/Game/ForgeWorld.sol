@@ -122,9 +122,6 @@ contract ForgeWorld is IForgeWorld {
 
     function _deployAbility(string memory name) internal {
         abilityCounter++;
-
-        // // required resource / metric to increase ability.
-
         abilities.push(abilityCounter);
 
         emit AbilityDeployed(abilityCounter, name);
@@ -161,10 +158,6 @@ contract ForgeWorld is IForgeWorld {
     function userLevelUpAbility(
         uint256 ability
     ) public claimRewards validateAbility(ability) {
-        // require ability exists. Burn resources to level up.
-        // require user has enough resources to level up ability
-        // require user has enough ability points
-
         for (uint256 i = 1; i <= worldCounter; i++) {
             _burnToken(worldToTokenResource[i], getLevelUpCost(ability, i));
         }
