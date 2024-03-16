@@ -1,0 +1,105 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.pripateluk.login">
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.NFC"/>
+  <uses-feature android:name="android.hardware.nfc" android:required="true"/>
+
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+  <uses-permission android:name="android.permission.VIBRATE"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+      <queries>
+      <package android:name="io.metamask"/>
+      <package android:name="com.wallet.crypto.trustapp"/>
+      <package android:name="io.gnosis.safe"/>
+      <package android:name="me.rainbow"/>
+      <package android:name="io.zerion.android"/>
+      <package android:name="im.token.app"/>
+      <package android:name="im.argent.contractwalletclient"/>
+      <package android:name="com.spot.spot"/>
+      <package android:name="fi.steakwallet.app"/>
+      <package android:name="com.defi.wallet"/>
+      <package android:name="vip.mytokenpocket"/>
+      <package android:name="com.frontierwallet"/>
+      <package android:name="piuk.blockchain.android"/>
+      <package android:name="io.safepal.wallet"/>
+      <package android:name="com.zengo.wallet"/>
+      <package android:name="io.oneinch.android"/>
+      <package android:name="exodusmovement.exodus"/>
+      <package android:name="com.ledger.live"/>
+      <package android:name="com.myetherwallet.mewwallet"/>
+      <package android:name="io.stormbird.wallet"/>
+      <package android:name="co.bacoor.keyring"/>
+      <package android:name="com.lobstr.client"/>
+      <package android:name="com.mathwallet.android"/>
+      <package android:name="com.unstoppabledomains.manager"/>
+      <package android:name="com.hashhalli.obvious"/>
+      <package android:name="com.fireblocks.client"/>
+      <package android:name="com.ambire.wallet"/>
+      <package android:name="com.mtpelerin.bridge"/>
+      <package android:name="com.internetmoneywallet.app"/>
+      <package android:name="com.bitcoin.mwallet"/>
+      <package android:name="coin98.crypto.finance.media"/>
+      <package android:name="io.myabcwallet.mpc"/>
+      <package android:name="finance.ottr.android"/>
+      <package android:name="co.arculus.wallet.android"/>
+      <package android:name="com.huddln"/>
+      <package android:name="com.permutize.haha"/>
+      <package android:name="com.modular"/>
+      <package android:name="com.carrieverse.cling.wallet"/>
+      <package android:name="com.broearn.browser"/>
+      <package android:name="com.ripio.android"/>
+      <package android:name="kh.com.sabay.sabaywallet"/>
+      <package android:name="com.tokoin.wallet"/>
+    </queries>
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.VIEW"/>
+      <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="https"/>
+    </intent>
+  </queries>
+  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:usesCleartextTraffic="true">
+    <meta-data android:name="expo.modules.updates.ENABLED" android:value="true"/>
+    <meta-data android:name="expo.modules.updates.EXPO_SDK_VERSION" android:value="48.0.0"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATE_URL" android:value="https://exp.host/@fernandobosco/mobile"/>
+    <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
+    <activity android:name=".MainActivity" android:label="@string/app_name" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <!-- <data android:scheme="com.pripateluk.login"/> -->
+        <data android:scheme="crosspay" android:host="*" />
+        <!-- <data android:scheme="http" /> -->
+        <!-- <data android:scheme="https" /> -->
+        <!-- <data android:host="pripateluk.github.io" /> -->
+      </intent-filter>
+      <!-- <intent-filter>
+          <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
+          <category android:name="android.intent.category.DEFAULT"/>
+        <data android:scheme="https"
+                    android:host="eth.vrfy.ch"
+        />
+      </intent-filter> -->
+<intent-filter>
+    <action android:name="android.nfc.action.TECH_DISCOVERED"/>
+    <category android:name="android.intent.category.DEFAULT"/>
+</intent-filter>
+
+<!-- <intent-filter>
+    <action android:name="android.nfc.action.TAG_DISCOVERED"/>
+    <category android:name="android.intent.category.DEFAULT"/>
+</intent-filter> -->
+
+<!-- <meta-data android:name="android.nfc.action.TECH_DISCOVERED"
+           android:resource="@xml/nfc_tech_filter" /> -->
+    </activity>
+    <activity android:name="com.facebook.react.devsupport.DevSettingsActivity" android:exported="false"/>
+  </application>
+</manifest>
