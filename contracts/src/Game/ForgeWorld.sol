@@ -252,23 +252,23 @@ contract ForgeWorld is IForgeWorld {
         uint256 ability
     ) public claimRewards validateAbility(ability) {
         for (uint256 i = 1; i <= worldCounter; i++) {
-            _burnToken(worldToTokenResource[i], getLevelUpCost(ability, i));
+            _burnToken(
+                worldToTokenResource[i],
+                getLevelUpCost(ability, i, msg.sender)
+            );
         }
         userAbilities[msg.sender][ability]++;
     }
 
     function getLevelUpCost(
         uint256 ability,
-        uint256 resource
+        uint256 resource,
+        address user
     ) public view returns (uint256) {
-        uint256 baseAmount = 5e18 * userAbilities[msg.sender][ability];
+        uint256 baseAmount = 5e18 * userAbilities[user][ability];
         uint256 rand = uint(
             keccak256(
-                abi.encodePacked(
-                    msg.sender,
-                    resource,
-                    userAbilities[msg.sender][ability]
-                )
+                abi.encodePacked(user, resource, userAbilities[user][ability])
             )
         ) % (baseAmount);
 
