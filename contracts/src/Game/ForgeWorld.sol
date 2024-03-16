@@ -4,6 +4,9 @@ pragma solidity 0.8.19;
 import "./ResourceToken.sol";
 import "./IForgeWorld.sol";
 import {console} from "forge-std/Script.sol";
+import "ens-contracts/ethregistrar/IETHRegistrarController.sol";
+import "ens-contracts/ethregistrar/IPriceOracle.sol";
+import "ens-contracts/wrapper/INameWrapper.sol";
 
 contract ForgeWorld is IForgeWorld {
     // Global game state
@@ -110,6 +113,68 @@ contract ForgeWorld is IForgeWorld {
         characterAbilities[character][4] = stamina;
     }
 
+    function _ensRegistration(
+        address _resolver,
+        address _registrar,
+        address _priceOracle
+    ) external payable {
+        string memory name = "forge-world";
+        uint256 duration = 31536000; // 1 year in seconds
+        bytes32 secret = 0x0; // No secret required for this example, assume not frontrun.
+        address resolver = _resolver; // Change and set resolver
+        bytes[] memory data = new bytes[](0); // no DNS records to set initially
+        bool reverseRecord = true;
+        uint16 ownerControlledFuses = 0; // Assuming no fuses are controlled by the owner
+
+        // Fetch the price for the registration
+        IPriceOracle.Price memory price = IPriceOracle(_priceOracle).price(
+            name,
+            0,
+            duration
+        );
+        uint256 totalCost = price.base + price.premium;
+
+        // Ensure the contract has enough balance to cover the registration cost
+        require(
+            address(this).balance >= totalCost,
+            "Insufficient balance for registration"
+        );
+
+        // Call the register function on the ENS registrar
+        IETHRegistrarController(_registrar).register{value: totalCost}(
+            name,
+            address(this), // Owner of the domain will be this contract
+            duration,
+            secret,
+            resolver,
+            data,
+            reverseRecord,
+            ownerControlledFuses
+        );
+    }
+
+    function _setSubdomainOwner(
+        address nameWrapperContract,
+        string memory subdomainLabel,
+        address subdomainOwner,
+        uint32 fuses,
+        uint64 expiry
+    ) internal {
+        // The parentNode for "forgeworld.eth" is the namehash of "eth"
+        bytes32 parentNode = 0x93cdeb708b7545dc668eb9280176169d1c33cfd8ed6f04690a0bcc88a93fc4ae;
+
+        // Call the setSubnodeOwner function on the INameWrapper contract
+        // Can only call once "forgeworld.eth" is already wrapped and owned by this contract which happens in _ensRegistration function
+        bytes32 subdomainNode = INameWrapper(nameWrapperContract)
+            .setSubnodeOwner(
+                parentNode,
+                subdomainLabel,
+                subdomainOwner,
+                fuses,
+                expiry
+            );
+    }
+
     function _deployWorld(string memory name, string memory symbol) internal {
         worldCounter++;
 
@@ -149,6 +214,19 @@ contract ForgeWorld is IForgeWorld {
 
         for (uint256 i = 1; i <= worldCounter; i++) {
             _mintToken(worldToTokenResource[i], msg.sender, 100e18);
+        }
+
+        // once name wrapper is deployed and found on Base
+        address nameWrapperAddress = address(0);
+
+        if (nameWrapperAddress != address(0)) {
+            _setSubdomainOwner(
+                nameWrapperAddress,
+                "name_incoming",
+                msg.sender,
+                0,
+                0
+            );
         }
 
         globalPopulation++;
