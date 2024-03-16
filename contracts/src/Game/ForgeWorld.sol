@@ -118,7 +118,7 @@ contract ForgeWorld is IForgeWorld {
         address _registrar,
         address _priceOracle
     ) external payable {
-        string memory name = "forge-world";
+        string memory name = "forgeworld";
         uint256 duration = 31536000; // 1 year in seconds
         bytes32 secret = 0x0; // No secret required for this example, assume not frontrun.
         address resolver = _resolver; // Change and set resolver
@@ -153,6 +153,19 @@ contract ForgeWorld is IForgeWorld {
         );
     }
 
+    function getNamehashForForgeworldEth() public pure returns (bytes32) {
+        bytes32 ethNode = keccak256(
+            abi.encodePacked(bytes32(0), keccak256(abi.encodePacked("eth")))
+        );
+        return
+            keccak256(
+                abi.encodePacked(
+                    ethNode,
+                    keccak256(abi.encodePacked("forgeworld"))
+                )
+            );
+    }
+
     function _setSubdomainOwner(
         address nameWrapperContract,
         string memory subdomainLabel,
@@ -160,14 +173,11 @@ contract ForgeWorld is IForgeWorld {
         uint32 fuses,
         uint64 expiry
     ) internal {
-        // The parentNode for "forgeworld.eth" is the namehash of "eth"
-        bytes32 parentNode = 0x93cdeb708b7545dc668eb9280176169d1c33cfd8ed6f04690a0bcc88a93fc4ae;
-
         // Call the setSubnodeOwner function on the INameWrapper contract
         // Can only call once "forgeworld.eth" is already wrapped and owned by this contract which happens in _ensRegistration function
         bytes32 subdomainNode = INameWrapper(nameWrapperContract)
             .setSubnodeOwner(
-                parentNode,
+                getNamehashForForgeworldEth(),
                 subdomainLabel,
                 subdomainOwner,
                 fuses,
