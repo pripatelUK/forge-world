@@ -12,6 +12,7 @@ contract ForgeWorld is IForgeWorld {
     uint256 public worldCounter;
     uint256 public abilityCounter;
     uint256 public characterCounter;
+    uint256 public globalPopulation;
 
     // Cumulative collection mapping for user awarded emissions.
     // epoch => resource => amount
@@ -123,6 +124,7 @@ contract ForgeWorld is IForgeWorld {
         abilityCounter++;
 
         // // required resource / metric to increase ability.
+
         abilities.push(abilityCounter);
 
         emit AbilityDeployed(abilityCounter, name);
@@ -152,6 +154,7 @@ contract ForgeWorld is IForgeWorld {
             _mintToken(worldToTokenResource[i], msg.sender, 100e18);
         }
 
+        globalPopulation++;
         emit UserJoinedWorld(msg.sender, world);
     }
 
@@ -161,7 +164,35 @@ contract ForgeWorld is IForgeWorld {
         // require ability exists. Burn resources to level up.
         // require user has enough resources to level up ability
         // require user has enough ability points
+
+        for (uint256 i = 1; i <= worldCounter; i++) {
+            _burnToken(worldToTokenResource[i], getLevelUpCost(ability, i));
+        }
         userAbilities[msg.sender][ability]++;
+    }
+
+    function getLevelUpCost(
+        uint256 ability,
+        uint256 resource
+    ) public view returns (uint256) {
+        uint256 baseAmount = 5e18 * userAbilities[msg.sender][ability];
+        uint256 rand = uint(
+            keccak256(
+                abi.encodePacked(
+                    msg.sender,
+                    resource,
+                    userAbilities[msg.sender][ability]
+                )
+            )
+        ) % (baseAmount);
+
+        bool shouldAdd = rand & 1 == 1;
+
+        if (shouldAdd) {
+            return baseAmount + rand;
+        } else {
+            return baseAmount - rand;
+        }
     }
 
     // function to move worlds. Moving worlds will forfeit all resources you are collecting this epoch
@@ -215,15 +246,29 @@ contract ForgeWorld is IForgeWorld {
             lastEpochTimestamp = block.timestamp;
             lastEpochTimestamp -= lastEpochTimestamp % 3600; // quantize to the start of the hour
 
-            uint256 incrementAmount = 10000e18; // 10k tokens mined per resource per world.
-
             epoch++;
 
             for (uint i = 0; i < worlds.length; i++) {
                 uint256 world = worlds[i];
 
+                uint256 psudeoRandomMultipler = (uint(
+                    keccak256(
+                        abi.encodePacked(
+                            block.timestamp,
+                            msg.sender,
+                            block.prevrandao,
+                            i
+                        )
+                    )
+                ) % 9) + 1;
+
+                uint256 incrementAmount = (globalPopulation *
+                    psudeoRandomMultipler *
+                    100e18) / worldCounter;
+
                 address resourceAddress = worldToTokenResource[world];
                 uint256 population = worldPopulation[world];
+
                 if (population == 0) {
                     population = 1; // avoid division by 0
                 }
@@ -240,5 +285,9 @@ contract ForgeWorld is IForgeWorld {
 
     function _mintToken(address token, address to, uint256 amount) internal {
         ResourceToken(token).mint(to, amount);
+    }
+
+    function _burnToken(address token, uint256 amount) internal {
+        ResourceToken(token).burnFrom(msg.sender, amount);
     }
 }
