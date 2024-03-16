@@ -148,6 +148,10 @@ contract ForgeWorld is IForgeWorld {
             userAbilities[msg.sender][i] = characterAbilities[character][i];
         }
 
+        for (uint256 i = 1; i <= worldCounter; i++) {
+            _mintToken(worldToTokenResource[i], msg.sender, 100e18);
+        }
+
         emit UserJoinedWorld(msg.sender, world);
     }
 
