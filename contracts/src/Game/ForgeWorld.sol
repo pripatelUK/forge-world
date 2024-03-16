@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity ^0.8.19;
 
 import "./ResourceToken.sol";
 import "./IForgeWorld.sol";
@@ -8,7 +8,15 @@ import "ens-contracts/ethregistrar/IETHRegistrarController.sol";
 import "ens-contracts/ethregistrar/IPriceOracle.sol";
 import "ens-contracts/wrapper/INameWrapper.sol";
 
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {CurrencyLibrary, Currency} from "v4-core/types/Currency.sol";
+import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
+
 contract ForgeWorld is IForgeWorld {
+    using CurrencyLibrary for Currency;
+
     // Global game state
     uint256 public epoch;
     uint256 public lastEpochTimestamp;
@@ -189,6 +197,8 @@ contract ForgeWorld is IForgeWorld {
         worldCounter++;
 
         address token = address(new ResourceToken(name, symbol));
+        ResourceToken(token).approve(address(lpRouter), type(uint256).max); // approve uni lp router to spend the token
+
         worldToTokenResource[worldCounter] = token;
         worlds.push(worldCounter);
 
@@ -365,5 +375,56 @@ contract ForgeWorld is IForgeWorld {
 
     function _burnToken(address token, uint256 amount) internal {
         ResourceToken(token).burnFrom(msg.sender, amount);
+    }
+
+    IPoolManager manager = IPoolManager(address(0x01));
+    PoolModifyLiquidityTest lpRouter = PoolModifyLiquidityTest(address(0x02));
+
+    function create_pool_and_seed_pool(
+        address token0,
+        address token1
+    ) external {
+        // sort tokens
+        if (token0 > token1) {
+            (token0, token1) = (token1, token0);
+        }
+
+        address hook = address(0x80); // prefix indicates the hook only has a beforeInitialize() function
+
+        uint24 swapFee = 3000; // 0.30% fee tier
+        int24 tickSpacing = 60;
+
+        // floor(sqrt(1) * 2^96)
+        uint160 sqrtPriceX96 = 79228162514264337593543950336;
+
+        // Assume the custom hook requires a timestamp when initializing it
+        bytes memory hookData = abi.encode(block.timestamp);
+
+        PoolKey memory pool = PoolKey({
+            currency0: Currency.wrap(token0),
+            currency1: Currency.wrap(token1),
+            fee: swapFee,
+            tickSpacing: tickSpacing,
+            hooks: IHooks(hook)
+        });
+        manager.initialize(pool, sqrtPriceX96, hookData);
+
+        // mint tokens
+        _mintToken(token0, address(this), 10e30);
+        _mintToken(token1, address(this), 10e30);
+
+        // then add liquidity (approval already given to router when token created)
+        int24 tickLower = -1000;
+        int24 tickUpper = 1000;
+        int256 liquidity = 10e27;
+        lpRouter.modifyLiquidity(
+            pool,
+            IPoolManager.ModifyLiquidityParams({
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                liquidityDelta: liquidity
+            }),
+            new bytes(0)
+        );
     }
 }
