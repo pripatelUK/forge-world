@@ -22,12 +22,12 @@ contract ForgeWorldScript is Script {
 
         // Simulate user1 joining world 1
         vm.prank(user1);
-        forgeWorld.userJoinWorld(1, 1);
+        forgeWorld.userJoinWorld(1, 1, "jeff");
         console.log("User1 joined world 1");
 
         // Simulate user2 joining world 2
         vm.prank(user2);
-        forgeWorld.userJoinWorld(2, 1);
+        forgeWorld.userJoinWorld(2, 1, "jeff2");
         console.log("User2 joined world 2");
 
         // Simulate time passage and epoch increment

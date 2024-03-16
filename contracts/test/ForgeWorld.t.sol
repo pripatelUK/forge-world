@@ -19,7 +19,7 @@ contract ForgeWorldTest is Test {
     function testUserJoinWorld() public {
         address user = address(1);
         vm.prank(user);
-        forgeWorld.userJoinWorld(1, 1);
+        forgeWorld.userJoinWorld(1, 1, "jeff2");
         assertEq(
             forgeWorld.userCurrentWorld(user),
             1,
@@ -31,7 +31,7 @@ contract ForgeWorldTest is Test {
         // User joins world 1
         address user = address(2);
         vm.prank(user);
-        forgeWorld.userJoinWorld(1, 1);
+        forgeWorld.userJoinWorld(1, 1, "jeff");
 
         // Simulate time passage and epoch increment
         vm.warp(block.timestamp + 3600);

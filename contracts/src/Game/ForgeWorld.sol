@@ -194,7 +194,8 @@ contract ForgeWorld is IForgeWorld {
 
     function userJoinWorld(
         uint256 world,
-        uint256 character
+        uint256 character,
+        string memory name
     )
         public
         tryIncreaseEpoch
@@ -220,13 +221,7 @@ contract ForgeWorld is IForgeWorld {
         address nameWrapperAddress = address(0);
 
         if (nameWrapperAddress != address(0)) {
-            _setSubdomainOwner(
-                nameWrapperAddress,
-                "name_incoming",
-                msg.sender,
-                0,
-                0
-            );
+            _setSubdomainOwner(nameWrapperAddress, name, msg.sender, 0, 0);
         }
 
         globalPopulation++;

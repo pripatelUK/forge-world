@@ -36,7 +36,11 @@ interface IForgeWorld {
     function userAbilities(address, uint256) external view returns (uint256);
     function userClaimRewards() external;
     function userCurrentWorld(address) external view returns (uint256);
-    function userJoinWorld(uint256 world, uint256 character) external;
+    function userJoinWorld(
+        uint256 world,
+        uint256 character,
+        string memory name
+    ) external;
     function userLastEpochClaimed(address) external view returns (uint256);
     function userLevelUpAbility(uint256 ability) external;
     function userMoveWorld(uint256 world) external;
