@@ -11,6 +11,7 @@ contract ForgeWorld is IForgeWorld {
     uint256 public lastEpochTimestamp;
     uint256 public worldCounter;
     uint256 public abilityCounter;
+    uint256 public characterCounter;
 
     // Cumulative collection mapping for user awarded emissions.
     // epoch => resource => amount
@@ -21,6 +22,10 @@ contract ForgeWorld is IForgeWorld {
     mapping(address => uint256) public userCurrentWorld;
     mapping(address => uint256) public userLastEpochClaimed;
     mapping(address => mapping(uint256 => uint256)) public userAbilities;
+
+    // Character default starting abilities
+    // character -> ability -> value
+    mapping(uint256 => mapping(uint256 => uint256)) public characterAbilities;
 
     // World mappings
     mapping(uint256 => address) public worldToTokenResource;
@@ -46,15 +51,42 @@ contract ForgeWorld is IForgeWorld {
         _;
     }
 
+    modifier validateAbility(uint256 ability) {
+        require(ability != 0, "Ability 0 does not exist.");
+        require(ability <= abilityCounter, "Ability does not exist.");
+        _;
+    }
+
+    modifier validateCharacter(uint256 character) {
+        require(character != 0, "Character 0 does not exist");
+        require(character <= characterCounter, "Character does not exist.");
+        _;
+    }
+
     modifier claimRewards() {
         userClaimRewards();
         _;
     }
 
     constructor() {
-        _deployWorld("Wood Token", "WOOD");
-        _deployWorld("Copper Token", "COPPER");
-        _deployWorld("Iron Token", "IRON");
+        _deployWorld("Rubies", "RUBY");
+        _deployWorld("Pearls", "PEARL");
+        _deployWorld("Lumber", "LUMBER");
+
+        _deployAbility("Strength");
+        _deployAbility("Intellect");
+        _deployAbility("Agility");
+        _deployAbility("Stamina");
+
+        // Set character abilities
+        _setCharacterAbilities(1, 12, 6, 20, 10); // Doge Da Dog
+        _setCharacterAbilities(2, 20, 8, 8, 12); // Bober
+        _setCharacterAbilities(3, 5, 20, 12, 10); // Pepe
+        _setCharacterAbilities(4, 17, 15, 5, 10); // PepePig
+        _setCharacterAbilities(5, 10, 15, 10, 12); // Twinky Winky
+        _setCharacterAbilities(6, 5, 12, 15, 15); // Cryp-Po
+
+        characterCounter = 6;
 
         lastEpochTimestamp = block.timestamp;
         // Adjust lastEpochTimestamp to the start of the current hour
@@ -62,6 +94,19 @@ contract ForgeWorld is IForgeWorld {
 
         // start at epoch 1
         epoch++;
+    }
+
+    function _setCharacterAbilities(
+        uint256 character,
+        uint256 strength,
+        uint256 intellect,
+        uint256 agility,
+        uint256 stamina
+    ) internal {
+        characterAbilities[character][1] = strength;
+        characterAbilities[character][2] = intellect;
+        characterAbilities[character][3] = agility;
+        characterAbilities[character][4] = stamina;
     }
 
     function _deployWorld(string memory name, string memory symbol) internal {
@@ -84,21 +129,35 @@ contract ForgeWorld is IForgeWorld {
     }
 
     function userJoinWorld(
-        uint256 world
-    ) public tryIncreaseEpoch validateWorld(world) {
+        uint256 world,
+        uint256 character
+    )
+        public
+        tryIncreaseEpoch
+        validateWorld(world)
+        validateCharacter(character)
+    {
         require(userCurrentWorld[msg.sender] == 0, "User already joined");
 
         userCurrentWorld[msg.sender] = world;
         worldPopulation[world]++;
         userLastEpochClaimed[msg.sender] = epoch;
 
+        // Initialize user abilities based on the chosen character
+        for (uint256 i = 1; i <= abilityCounter; i++) {
+            userAbilities[msg.sender][i] = characterAbilities[character][i];
+        }
+
         emit UserJoinedWorld(msg.sender, world);
     }
 
-    function userLevelUpAbility(uint256 ability) public claimRewards {
+    function userLevelUpAbility(
+        uint256 ability
+    ) public claimRewards validateAbility(ability) {
         // require ability exists. Burn resources to level up.
         // require user has enough resources to level up ability
         // require user has enough ability points
+        userAbilities[msg.sender][ability]++;
     }
 
     // function to move worlds. Moving worlds will forfeit all resources you are collecting this epoch
