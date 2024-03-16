@@ -4,14 +4,32 @@ pragma solidity ^0.8.19;
 
 interface IForgeWorld {
     event EpochIncreased(uint256 newEpoch);
-    event UserClaimedRewards(address indexed user, uint256 epoch, address resourceAddress, uint256 reward);
+    event UserClaimedRewards(
+        address indexed user,
+        uint256 epoch,
+        address resourceAddress,
+        uint256 reward
+    );
     event UserJoinedWorld(address indexed user, uint256 world);
-    event UserMovedWorld(address indexed user, uint256 fromWorld, uint256 toWorld);
-    event WorldDeployed(uint256 indexed worldId, address tokenResource, string name, string symbol);
+    event UserMovedWorld(
+        address indexed user,
+        uint256 fromWorld,
+        uint256 toWorld
+    );
+    event WorldDeployed(
+        uint256 indexed worldId,
+        address tokenResource,
+        string name,
+        string symbol
+    );
+    event AbilityDeployed(uint256 indexed AbilityId, string name);
 
     function abilities(uint256) external view returns (uint256);
     function abilityCounter() external view returns (uint256);
-    function cumulativeResourceCollectedPerEpoch(uint256, address) external view returns (uint256);
+    function cumulativeResourceCollectedPerEpoch(
+        uint256,
+        address
+    ) external view returns (uint256);
     function epoch() external view returns (uint256);
     function increaseEpoch() external;
     function lastEpochTimestamp() external view returns (uint256);

@@ -2,29 +2,10 @@
 pragma solidity 0.8.19;
 
 import "./ResourceToken.sol";
+import "./IForgeWorld.sol";
 import {console} from "forge-std/Script.sol";
 
-contract ForgeWorld {
-    event WorldDeployed(
-        uint256 indexed worldId,
-        address tokenResource,
-        string name,
-        string symbol
-    );
-    event UserJoinedWorld(address indexed user, uint256 world);
-    event UserMovedWorld(
-        address indexed user,
-        uint256 fromWorld,
-        uint256 toWorld
-    );
-    event UserClaimedRewards(
-        address indexed user,
-        uint256 epoch,
-        address resourceAddress,
-        uint256 reward
-    );
-    event EpochIncreased(uint256 newEpoch);
-
+contract ForgeWorld is IForgeWorld {
     // Global game state
     uint256 public epoch;
     uint256 public lastEpochTimestamp;
@@ -65,6 +46,11 @@ contract ForgeWorld {
         _;
     }
 
+    modifier claimRewards() {
+        userClaimRewards();
+        _;
+    }
+
     constructor() {
         _deployWorld("Wood Token", "WOOD");
         _deployWorld("Copper Token", "COPPER");
@@ -88,19 +74,13 @@ contract ForgeWorld {
         emit WorldDeployed(worldCounter, token, name, symbol);
     }
 
-    function _deployAbility(string memory name, string memory symbol) internal {
+    function _deployAbility(string memory name) internal {
         abilityCounter++;
 
         // // required resource / metric to increase ability.
         abilities.push(abilityCounter);
 
-        // emit WorldDeployed(worldCounter, token, name, symbol);
-    }
-
-    function userLevelUpAbility(uint256 ability) public {
-        // require ability exists. Burn resources to level up.
-        // require user has enough resources to level up ability
-        // require user has enough ability points
+        emit AbilityDeployed(abilityCounter, name);
     }
 
     function userJoinWorld(
@@ -115,10 +95,16 @@ contract ForgeWorld {
         emit UserJoinedWorld(msg.sender, world);
     }
 
-    // function to move worlds. Moving worlds will forfeit all resources you are collecting this epoch
-    function userMoveWorld(uint256 world) public validateWorld(world) {
-        userClaimRewards(); // this function also checks user already exists
+    function userLevelUpAbility(uint256 ability) public claimRewards {
+        // require ability exists. Burn resources to level up.
+        // require user has enough resources to level up ability
+        // require user has enough ability points
+    }
 
+    // function to move worlds. Moving worlds will forfeit all resources you are collecting this epoch
+    function userMoveWorld(
+        uint256 world
+    ) public validateWorld(world) claimRewards {
         // Could impose cost on user for moving worlds.
         uint256 currentWorld = userCurrentWorld[msg.sender];
         worldPopulation[currentWorld]--;
@@ -137,6 +123,10 @@ contract ForgeWorld {
     {
         uint256 lastEpochClaimed = userLastEpochClaimed[msg.sender];
         if (lastEpochClaimed < epoch) {
+            if (epoch - lastEpochClaimed > 12) {
+                // can only claim from last 12 epochs
+                lastEpochClaimed = epoch - 12;
+            }
             address resourceAddress = worldToTokenResource[
                 userCurrentWorld[msg.sender]
             ];
