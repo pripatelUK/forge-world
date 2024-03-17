@@ -15,6 +15,7 @@ export type RootStackParamList = {
 export interface IGame {
   worlds: IWorld[];
   character?: ICharacter; // TODO: Change to mandatory soon
+  navigation: any;
 }
 
 export interface ICharacter {

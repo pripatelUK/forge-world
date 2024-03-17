@@ -301,7 +301,19 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
     // Logic to retrieve and set the session token, e.g., from AsyncStorage
     const goHome = async () => {
       let email = await AsyncStorage.getItem(`loginID`);
+      console.log("email", email)
       if (email) {
+        //@todo
+        // setSelectedCharacter(characters[0])
+        let char = characters[1];
+        setPlayer({
+          username: email,
+          imgSrc: char.imgSrc,
+          name: char.name,
+          epochsAccrued: undefined,
+          attributes: attributes[char.name],
+          resources: undefined,
+        });
         navigation.navigate('MainMenu');
       }
     };
