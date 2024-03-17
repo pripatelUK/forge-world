@@ -32,6 +32,7 @@ contract ForgeWorld is IForgeWorld {
     // User state
     mapping(address => uint256) public userCurrentWorld;
     mapping(address => uint256) public userLastEpochClaimed;
+    mapping(address => uint256) public userCharacter;
     mapping(address => mapping(uint256 => uint256)) public userAbilities;
 
     // Character default starting abilities
@@ -205,6 +206,7 @@ contract ForgeWorld is IForgeWorld {
         require(userCurrentWorld[msg.sender] == 0, "User already joined");
 
         userCurrentWorld[msg.sender] = world;
+        userCharacter[msg.sender] = character;
         worldPopulation[world]++;
         userLastEpochClaimed[msg.sender] = epoch;
 
@@ -226,6 +228,14 @@ contract ForgeWorld is IForgeWorld {
 
         globalPopulation++;
         emit UserJoinedWorld(msg.sender, world);
+    }
+
+    function getResources(address person) public view returns (uint256[] memory balances) {
+        balances = new uint256[](worldCounter);
+        for (uint256 i = 0; i < worldCounter; i++) {
+            balances[i] = ResourceToken(worldToTokenResource[i + 1]).balanceOf(person);
+        }
+        return balances;
     }
 
     function userLevelUpAbility(uint256 ability) public claimRewards validateAbility(ability) {
