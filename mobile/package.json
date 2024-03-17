@@ -21,6 +21,8 @@
     "@react-native-picker/picker": "^2.5.1",
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/stack": "^6.3.20",
+    "@rneui/base": "^4.0.0-rc.8",
+    "@rneui/themed": "^4.0.0-rc.8",
     "@types/react": "~18.0.27",
     "@walletconnect/react-native-compat": "^2.10.5",
     "@web3modal/wagmi-react-native": "^1.0.0-beta.2",
