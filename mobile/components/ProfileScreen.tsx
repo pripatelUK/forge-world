@@ -1,35 +1,66 @@
-import React, { useContext, useEffect } from 'react';
-import { View, Text, ActivityIndicator, SafeAreaView, StyleSheet, TextInput, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from "react-native";
+import React, {
+    Dispatch,
+    SetStateAction,
+    useCallback,
+    useContext,
+    useEffect,
+    useLayoutEffect,
+    useState,
+} from "react";
+import { StyleSheet, Text, View, Image, FlatList } from "react-native";
+import { GameContext } from "../contexts/GameContext";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList, Token } from "../types/types";
+// import { useFonts } from "expo-font";
+// import * as SplashScreen from "expo-splash-screen";
+import { Button, LinearProgress } from "@rneui/themed";
+import { CheckBox, Dialog, Divider } from "@rneui/base";
+import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { Picker } from '@react-native-picker/picker';
-
-import { IUserOperation, Presets, UserOperationBuilder } from 'userop';
-import { api } from "../api";
-import { getAddress, getGasLimits, getPaymasterData, sendUserOp, signUserOp, signUserOpWithCreate, userOpToSolidity } from "../utils/passkeyUtils";
 import { Contract, ethers } from 'ethers';
 import { provider } from '../utils/providers';
 import { Passkey } from "react-native-passkey";
 import gameABI from '../abis/forgeworld.json';
+import { characters, worlds } from "../shared";
+
+
+import { IUserOperation, Presets, UserOperationBuilder } from 'userop';
+import { api } from "../api";
+import { getAddress, getGasLimits, getPaymasterData, sendUserOp, signUserOp, signUserOpWithCreate, userOpToSolidity } from "../utils/passkeyUtils";
 import { entrypointContract, simpleAccountAbi, walletFactoryContract } from '../utils/contracts';
 import { VITE_ENTRYPOINT } from '../utils/constants';
-import { Button, LinearProgress } from "@rneui/themed";
-import { GameContext } from '../contexts/GameContext';
 
-export function ProfileScreen({ navigation }) {
+export type ProfileScreenProps = {
+    navigation: NativeStackNavigationProp<RootStackParamList, "Profile">;
+};
+
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     const { player } = useContext(GameContext); // Assuming your context provides the player object with a level and username
-    console.log(player)
-    const [status, setStatus] = React.useState('Connecting and processing...');
+    console.log(`[ProfileScreen]: ${JSON.stringify(player)}`);
+    const [isClaimableDialogVisible, setIsClaimableDialogVisible] =
+        useState(false);
+    const [isLevelUpDialogVisible, setIsLevelUpDialogVisible]: [
+        boolean,
+        Dispatch<SetStateAction<boolean>>
+    ] = useState(false);
+    const [requestingTransaction, setRequestTransaction]: [
+        boolean,
+        Dispatch<SetStateAction<boolean>>
+    ] = useState(false);
 
-    const [world, setWorld] = React.useState(1);
-    const [requestingTransaction, setRequestingTransaction] = React.useState(true);
+    // checkedAttribuet
+    const [checkedAttribute, setCheckedAttribute] = useState(1);
+    const ATTRIBUTES_LIST: string[] = [
+        "Strength",
+        "Intellect",
+        "Agility",
+        "Stamina",
+    ];
 
-    const { attributes } = player;
-    const currentLevel = Object.values(attributes).reduce((a, b) => a + b);
-    const handlePasskey = async () => {
-        setRequestingTransaction(false)
-        setStatus("Authenticating Passkey")
+    const handlePasskey = async (ability: number) => {
+        setRequestTransaction(true);
+        // setStatus("Authenticating Passkey")
         console.log("lol")
         try {
             let email = await AsyncStorage.getItem(`loginID`);
@@ -59,7 +90,7 @@ export function ProfileScreen({ navigation }) {
                 optionsResponse,
                 email,
             });
-            await handleSign(optionsResponse)
+            await handleSign(optionsResponse, ability)
             if (verifyRes.status === 200) {
                 // Alert.alert("All good", "success!");
                 // //@todo approve
@@ -74,16 +105,16 @@ export function ProfileScreen({ navigation }) {
         }
     };
 
-    const [transactionHash, setTransactionHash] = React.useState('');
     const [transactionStatus, setTransactionStatus] = React.useState<'waiting' | 'confirmed' | 'error'>();
-    const [isSubmitted, setIsSubmitted] = React.useState(false);
 
-    const handleSign = async (passkey: string) => {
+    const handleSign = async (passkey: string, ability: number) => {
         let email = await AsyncStorage.getItem(`loginID`);
 
-        setStatus("Executing Transaction")
+        // setStatus("Executing Transaction")
         setTransactionStatus('waiting');
         console.log('yo login', email);
+        // const dialogWorldID = worlds.findIndex(world => dialogState.world.terrain == world.terrain) + 1;
+        // console.log("dialogWorldID", dialogWorldID)
 
         const walletAddress = await getAddress((email as string));
         const gameAddr = "0xd0483C06D9b48eb45121b3D578B2f8d2000283b5";
@@ -96,7 +127,7 @@ export function ProfileScreen({ navigation }) {
             .useMiddleware(Presets.Middleware.getGasPrice(provider))
             .setCallData(
                 simpleAccountAbi.encodeFunctionData('executeBatch', [
-                    [gameAddr], [0], [gameContract.interface.encodeFunctionData('userMoveWorld', [world])]
+                    [gameAddr], [0], [gameContract.interface.encodeFunctionData('userLevelUpAbility', [ability])]
                 ]),
             )
             .setNonce(await entrypointContract.getNonce(walletAddress, 0));
@@ -164,14 +195,17 @@ export function ProfileScreen({ navigation }) {
 
         sendUserOp(signedUserOp)
             .then(async (receipt: any) => {
-                setStatus("Executing Transaction")
+                // setStatus("Executing Transaction")
                 await receipt.wait();
-                setTransactionHash(receipt.hash);
                 setTransactionStatus('confirmed');
                 console.log({ receipt });
                 // sendTxData()
                 //@todo approve
-                navigation.navigate('Home');
+                // setActiveWorld(worlds[worlds.findIndex(world => dialogState.world.terrain == world.terrain)]);
+                // setDialogState((prevState) => ({ ...prevState, visible: false }));
+                // navigation.navigate('MainMenu');
+                await fetchWorld()
+                setRequestTransaction(false);
             })
             .catch((e: any) => {
                 setTransactionStatus('error');
@@ -179,175 +213,525 @@ export function ProfileScreen({ navigation }) {
             });
     }
 
-    // if (requestingTransaction) {
-    //     return (
-    //         <SafeAreaView style={styles.container}>
+    // const [fontsLoaded] = useFonts({
+    //     ToysRUs: require("../assets/fonts/toys_r_us.ttf"),
+    // });
 
-    //             <Text style={styles.text}>Profile</Text>
-    //             {/* <Button
-    //                     onPress={async () => {
-    //                         navigation.navigate('CreateVirtual');
-    //                     }}>
-    //                     Create Virtual Card
-    //                 </Button> */}
-    //             {/* <Button
-    //                     onPress={logOut}
-    //                 >
-    //                     Log Out
-    //                 </Button> */}
-    //         </SafeAreaView>
-    //     );
+    // if (!fontsLoaded) {
+    //     return null;
     // }
 
+    // useEffect(() => {
+    //     let isMounted = true;
+    //     const fetchResources = async () => {
+    //         // Make fetch  call to blockchain [existing player resources] (if data is not undefined and isMounted) - setResources.
+    //         if (isMounted) {
+    //         }
+    //     };
+
+    //     const fetchClaimableResources = async () => {
+    //         // Make fetch call to blockchain [claimable Resources](if data is not undefined and isMounted) - setClaimableResources.
+    //         if (isMounted) {
+    //         }
+    //     };
+    //     // await fetchResources();
+    //     return () => {
+    //         isMounted = false;
+    //     };
+    // }, []);
+
+    // NOTE: PRI use setResources to update the resources when you make your call to the BlOCKACHAIN
+    const [resources, setResources] = useState({
+        rubies: 0,
+        lumber: 0,
+        pearls: 0,
+    });
+
+    const [claimableResources, setClaimableResources] = useState({
+        rubies: 12,
+        lumber: 3,
+        pearls: 8,
+    });
+    const [agiLvlUp, setAgiLvlup] = useState({
+        rubies: "",
+        lumber: "",
+        pearls: "",
+    });
+    const [strLvlUp, setStrLvlup] = useState({
+        rubies: "",
+        lumber: "",
+        pearls: "",
+    });
+    const [stamLvlUp, setStamLvlup] = useState({
+        rubies: "",
+        lumber: "",
+        pearls: "",
+    });
+    const [intLvlUp, setIntLvlup] = useState({
+        rubies: "",
+        lumber: "",
+        pearls: "",
+    });
+
+    const { activeWorld, setActiveWorld, setPlayer } = useContext(GameContext);
+
+    const [passkeyID, setPasskeyID] = React.useState('');
+    const [walletAddr, setWalletAddr] = React.useState('');
+    // const [currWorldID, setWorld] = React.useState(0);
+
+
+    const fetchWorld = async () => {
+        try {
+            const gameContract = new ethers.Contract("0xd0483C06D9b48eb45121b3D578B2f8d2000283b5", gameABI.abi, provider);
+            let username = await AsyncStorage.getItem(`loginID`);
+            if (walletAddr && username) {
+                const currentWorld = await gameContract.userCurrentWorld(walletAddr);
+                const userChar = await gameContract.userCharacter(walletAddr);
+                const str = await gameContract.userAbilities(walletAddr, 1);
+                const int = await gameContract.userAbilities(walletAddr, 2);
+                const agi = await gameContract.userAbilities(walletAddr, 3);
+                const stam = await gameContract.userAbilities(walletAddr, 4);
+                const lvlstr_ruby = await gameContract.getLevelUpCost(1, 1, walletAddr);
+                const lvlstr_lumber = await gameContract.getLevelUpCost(1, 2, walletAddr);
+                const lvlstr_pearl = await gameContract.getLevelUpCost(1, 3, walletAddr);
+                const lvlint_ruby = await gameContract.getLevelUpCost(2, 1, walletAddr);
+                const lvlint_lumber = await gameContract.getLevelUpCost(2, 2, walletAddr);
+                const lvlint_pearl = await gameContract.getLevelUpCost(2, 3, walletAddr);
+                const lvlagi_ruby = await gameContract.getLevelUpCost(3, 1, walletAddr);
+                const lvlagi_lumber = await gameContract.getLevelUpCost(3, 2, walletAddr);
+                const lvlagi_pearl = await gameContract.getLevelUpCost(3, 3, walletAddr);
+                const lvlstam_ruby = await gameContract.getLevelUpCost(4, 1, walletAddr);
+                const lvlstam_lumber = await gameContract.getLevelUpCost(4, 2, walletAddr);
+                const lvlstam_pearl = await gameContract.getLevelUpCost(4, 3, walletAddr);
+                setIntLvlup({ rubies: (+ethers.utils.formatUnits(lvlint_ruby, 18)).toFixed(4), lumber: (+ethers.utils.formatUnits(lvlint_lumber, 18)).toFixed(4), pearls: (+ethers.utils.formatUnits(lvlint_pearl, 18)).toFixed(4) })
+                setStamLvlup({ rubies: (+ethers.utils.formatUnits(lvlstam_ruby, 18)).toFixed(4), lumber: (+ethers.utils.formatUnits(lvlstam_lumber, 18)).toFixed(4), pearls: (+ethers.utils.formatUnits(lvlstam_pearl, 18)).toFixed(4) })
+                setStrLvlup({ rubies: (+ethers.utils.formatUnits(lvlstr_ruby, 18)).toFixed(4), lumber: (+ethers.utils.formatUnits(lvlstr_lumber, 18)).toFixed(4), pearls: (+ethers.utils.formatUnits(lvlstr_pearl, 18)).toFixed(4) })
+                setAgiLvlup({ rubies: (+ethers.utils.formatUnits(lvlagi_ruby, 18)).toFixed(4), lumber: (+ethers.utils.formatUnits(lvlagi_lumber, 18)).toFixed(4), pearls: (+ethers.utils.formatUnits(lvlagi_pearl, 18)).toFixed(4) })
+                // function getLevelUpCost(uint256 ability, uint256 resource, address user)
+                const [rubies, pearls, lumber] = (await gameContract.getResources(walletAddr)).map(x => (+ethers.utils.formatUnits(x, 18)).toFixed(2));
+                setResources({ rubies, pearls, lumber })
+                // console.log(str, int, agi, stam)
+                // attributes: {
+                //     strength: number;
+                //     intellect: number;
+                //     agility: number;
+                //     stamina: number;
+                // };
+                // characterAbilities[character][1] = strength;
+                // characterAbilities[character][2] = intellect;
+                // characterAbilities[character][3] = agility;
+                // characterAbilities[character][4] = stamina;
+                console.log("currentWorld", currentWorld.toNumber())
+                console.log("userChar", userChar.toNumber())
+                // setWorld(currentWorld.toNumber());
+                setActiveWorld(worlds[currentWorld.toNumber() - 1]);
+                let char = characters[userChar.toNumber() - 1];
+                setPlayer({
+                    username,
+                    imgSrc: char.imgSrc,
+                    name: char.name,
+                    epochsAccrued: undefined,
+                    attributes: {
+                        strength: str.toNumber(),
+                        intellect: int.toNumber(),
+                        agility: agi.toNumber(),
+                        stamina: stam.toNumber()
+                    },
+                    resources: undefined,
+                });
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchWorld()
+        }, [walletAddr, passkeyID, activeWorld])
+    );
+
+    useFocusEffect(
+        React.useCallback(() => {
+            const checkPasskey = async () => {
+                // console.log(isConnected)
+                let username = await AsyncStorage.getItem(`loginID`);
+                if (username) {
+                    let loginPasskeyId = await AsyncStorage.getItem(`${username}_passkeyId`);
+                    console.log("loginPasskeyId", username)
+                    let wallet = await getAddress((username as string));
+                    // console.log(wallet)
+                    setWalletAddr(wallet);
+                    if (loginPasskeyId) {
+                        setPasskeyID(loginPasskeyId)
+                    } else {
+                        logOut()
+                    }
+                }
+            };
+            checkPasskey();
+
+            return () => {
+                // Optional cleanup
+            };
+        }, [passkeyID])
+    );
+
+    const logOut = async () => {
+        let email = await AsyncStorage.getItem(`loginID`);
+        if (email) {
+            await AsyncStorage.removeItem(`loginID`);
+            await AsyncStorage.removeItem(`${email}_passkeyId`);
+        }
+        await AsyncStorage.removeItem(passkeyID);
+        await AsyncStorage.removeItem('@session_token');
+        navigation.navigate('CharacterSelect');
+    };
+
+
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerBackTitle: "Main Menu",
+            headerBackTitleStyle: {
+                fontFamily: "ToysRUs",
+            },
+            headerTitle: "Guild",
+            headerTitleStyle: {
+                fontFamily: "ToysRUs",
+            },
+            headerStyle: { backgroundColor: "transparent" },
+        });
+    });
+
+    // const onLayoutRootView = useCallback(async () => {
+    //     if (fontsLoaded) {
+    //         await SplashScreen.hideAsync();
+    //     }
+    // }, [fontsLoaded]);
+
+    const { attributes } = player;
+    // const currentLevel = attributes ? Object.values(attributes).reduce((a, b) => a + b) : 0;
+    const currentLevel = 19;
+
+    const ActionButtons = ({
+        setIsClaimableDialogVisible,
+        setIsLevelUpDialogVisible,
+    }) => {
+        return (
+            <View style={styles.container}>
+                <View style={styles.buttonContainer}>
+                    <Button
+                        titleStyle={styles.titleStyle}
+                        buttonStyle={styles.buttonStyle}
+                        onPress={() => setIsClaimableDialogVisible(true)}
+                        title="Claim"
+                    />
+                </View>
+                <View style={styles.buttonContainer}>
+                    <Button
+                        titleStyle={styles.titleStyle}
+                        buttonStyle={styles.buttonStyle}
+                        onPress={() => setIsLevelUpDialogVisible(true)}
+                        title="Level Up"
+                    />
+                </View>
+            </View>
+        );
+    };
+
     return (
-        // <View style={styles.cardContainer} onLayout={onLayoutRootView}>
         <View style={styles.cardContainer}>
             <View style={styles.cardHeader}>
                 <Text style={[styles.cardTitle, { fontFamily: "ToysRUs" }]}>
-                    {"username"}
+                    {player.username}
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text style={[styles.cardLevel, { fontFamily: "ToysRUs" }]}>
-                        {/* Level {currentLevel} */}
-                        Level {"1"}
-                    </Text>
-                    <LinearProgress
-                        style={{
-                            marginVertical: 10,
-                            width: 75,
-                            height: 8,
-                            borderRadius: 8,
-                            marginHorizontal: 4,
-                        }}
-                        value={Math.random()}
-                        variant="determinate"
-                        trackColor="red"
-                        color="green"
+                <Text style={[styles.cardTitle, { fontFamily: "ToysRUs" }]}>
+                    {player.name}
+                </Text>
+            </View>
+            <View style={{ width: "100%", alignItems: "center" }}>
+                <View style={styles.imageContainer}>
+                    <Image
+                        style={styles.cardImage}
+                        source={{ uri: player.imgSrc }} // The player's image URL goes here
                     />
-                    <Text style={[styles.cardLevel, { fontFamily: "ToysRUs" }]}>
-                        {" "}
-                        {/* {currentLevel + 1} */}
-                        {1 + 1}
-                    </Text>
                 </View>
+                <LevelSection currentLevel={currentLevel} />
             </View>
-            <View style={styles.imageContainer}>
-                <Image
-                    style={styles.cardImage}
-                    source={{ uri: "https://i.seadn.io/gae/AU-ip8HlUWOfUYwxbgnbJUcRtSauohPG6Wc7yB2HTXvW76CzclL03E52lOG4ehpPY7Skflhw5sfJecLsh4fInrkhe4MomoseJ2JUQg?auto=format&dpr=1&w=1000" }} // The player's image URL goes here
-                />
-            </View>
-            <View style={styles.attributesContainer}>
-                <View style={[styles.column1]}>
-                    <Text style={[styles.resourcesHeader, { fontFamily: "ToysRUs" }]}>
-                        Attributes
-                    </Text>
-                    <Text style={[styles.attributeName, { fontFamily: "ToysRUs" }]}>
-                        Strength
-                    </Text>
-                    <Text style={[styles.attributeValue, { fontFamily: "ToysRUs" }]}>
-                        {attributes.strength}
-                    </Text>
-                    <Text style={[styles.attributeName, { fontFamily: "ToysRUs" }]}>
-                        Intellect
-                    </Text>
-                    <Text style={[styles.attributeValue, { fontFamily: "ToysRUs" }]}>
-                        {attributes.intellect}
-                    </Text>
-                    <Text style={[styles.attributeName, { fontFamily: "ToysRUs" }]}>
-                        Agility
-                    </Text>
-                    <Text style={[styles.attributeValue, { fontFamily: "ToysRUs" }]}>
-                        {attributes.agility}
-                    </Text>
-                    <Text style={[styles.attributeName, { fontFamily: "ToysRUs" }]}>
-                        Stamina
-                    </Text>
-                    <Text style={[styles.attributeValue, { fontFamily: "ToysRUs" }]}>
-                        {attributes.stamina}
-                    </Text>
-                </View>
 
-                <View style={styles.resourcesContainer}>
-                    <Text style={[styles.resourcesHeader, { fontFamily: "ToysRUs" }]}>
-                        Resources
+            <AttributeSection
+                agility={attributes?.agility}
+                intellect={attributes?.intellect}
+                strength={attributes?.strength}
+                stamina={attributes?.stamina}
+            />
+            <Divider
+                style={{ height: 4, borderWidth: 4, marginVertical: 16 }}
+                orientation="vertical"
+            />
+            <ResourceSection
+                lumber={resources.lumber}
+                pearls={resources.pearls}
+                ruby={resources.rubies}
+            />
+            <ActionButtons
+                setIsClaimableDialogVisible={setIsClaimableDialogVisible}
+                setIsLevelUpDialogVisible={setIsLevelUpDialogVisible}
+            />
+            {isClaimableDialogVisible && (
+                <Dialog
+                    isVisible={isClaimableDialogVisible}
+                    overlayStyle={{ backgroundColor: "white" }}
+                    onBackdropPress={() => {
+                        setIsClaimableDialogVisible(false);
+                    }}
+                >
+                    <Dialog.Title
+                        title={`Claim Tokens`}
+                        titleStyle={{ fontFamily: "ToysRUs" }}
+                    />
+
+                    <Text>
+                        {Object.entries(claimableResources).map(([key, value], idx) => {
+                            console.log(key);
+                            console.log(value);
+
+                            return (
+                                <Text key={key} style={{ fontFamily: "ToysRUs", fontSize: 18 }}>
+                                    {"\n"}
+                                    {key}: {value}
+                                </Text>
+                            );
+                        })}
                     </Text>
-                    <View
-                        style={{
-                            flexDirection: "row",
-                            justifyContent: "space-around",
-                        }}
-                    >
-                        <View style={styles.column2}>
-                            <Text style={[styles.subHeader, { fontFamily: "ToysRUs" }]}>
-                                Earned
-                            </Text>
 
-                            <Text style={[styles.resourceName, { fontFamily: "ToysRUs" }]}>
-                                💎 Rubies
-                            </Text>
-                            <Text style={[styles.resourceValue, { fontFamily: "ToysRUs" }]}>
-                                {/* player.rubies */}135
-                            </Text>
-
-                            <Text style={[styles.resourceName, { fontFamily: "ToysRUs" }]}>
-                                🫧 Pearls
-                            </Text>
-                            <Text style={[styles.resourceValue, { fontFamily: "ToysRUs" }]}>
-                                {/* player.pearls */}51
-                            </Text>
-                            <Text style={[styles.resourceName, { fontFamily: "ToysRUs" }]}>
-                                🪵 Lumber
-                            </Text>
-                            <Text style={[styles.resourceValue, { fontFamily: "ToysRUs" }]}>
-                                {/* player.lumber */}12
-                            </Text>
-                        </View>
-
-                        <View style={styles.column3}>
-                            <Text style={[styles.subHeader, { fontFamily: "ToysRUs" }]}>
-                                Claimable
-                            </Text>
-                            <Text style={[styles.resourceName, { fontFamily: "ToysRUs" }]}>
-                                💎 Rubies
-                            </Text>
-                            <Text style={[styles.resourceValue, { fontFamily: "ToysRUs" }]}>
-                                {/* player.claimableRubies */}12
-                            </Text>
-                            <Text style={[styles.resourceName, { fontFamily: "ToysRUs" }]}>
-                                🫧 Pearls
-                            </Text>
-                            <Text style={[styles.resourceValue, { fontFamily: "ToysRUs" }]}>
-                                {/* player.claimablePearls */}53
-                            </Text>
-                            <Text style={[styles.resourceName, { fontFamily: "ToysRUs" }]}>
-                                🪵 Lumber
-                            </Text>
-                            <Text style={[styles.resourceValue, { fontFamily: "ToysRUs" }]}>
-                                {/* player.claimableLumber */}125
-                            </Text>
-                        </View>
-                    </View>
-                    <View style={{ paddingHorizontal: "5%", marginTop: 6 }}>
-                        <Button
-                            title="Claim"
-                            type="outline"
-                            titleStyle={{ fontFamily: "ToysRUs", color: "gold" }}
-                            buttonStyle={{
-                                width: "100%",
-                                backgroundColor: "black",
-                                borderRadius: 4,
-                            }}
+                    <Dialog.Actions>
+                        <Dialog.Button
+                            title="Confirm"
                             onPress={() => {
-                                /* TODO: Api Call to claim resources. */
+                                // TODO: Api Call use loading states.
+                                setRequestTransaction(true);
                             }}
-                        ></Button>
-                    </View>
-                </View>
+                        />
+                        <Dialog.Button
+                            title="Cancel"
+                            onPress={() => setIsClaimableDialogVisible(false)}
+                        />
+                    </Dialog.Actions>
+                </Dialog>
+            )}
+            {isLevelUpDialogVisible && (
+                <Dialog
+                    isVisible={isLevelUpDialogVisible}
+                    overlayStyle={{ backgroundColor: "white" }}
+                    onBackdropPress={() => {
+                        setIsLevelUpDialogVisible(false);
+                    }}
+                >
+                    {!requestingTransaction ? (
+                        <>
+                            <Text style={{ fontFamily: "ToysRUs", fontSize: 18 }}>
+                                Level Up Your Skill
+                            </Text>
+                            {/* Should be using enums but its a hackathon so fuck it*/}
+                            {ATTRIBUTES_LIST.map((l, i) => (
+                                <CheckBox
+                                    key={i}
+                                    title={l}
+                                    containerStyle={{ backgroundColor: "white", borderWidth: 0 }}
+                                    checkedIcon="dot-circle-o"
+                                    uncheckedIcon="circle-o"
+                                    checked={checkedAttribute === i}
+                                    onPress={() => setCheckedAttribute(i)}
+                                />
+                            ))}
+
+                            <Text style={{ fontFamily: "ToysRUs" }}>
+                                {_determineSkillPaymentAmount(
+                                    ATTRIBUTES_LIST[checkedAttribute] as
+                                    | "Agility"
+                                    | "Stamina"
+                                    | "Strength"
+                                    | "Intellect",
+                                    intLvlUp,
+                                    strLvlUp, stamLvlUp, agiLvlUp
+                                )}
+                            </Text>
+
+                            <Dialog.Actions>
+                                <Dialog.Button
+                                    title="Confirm"
+                                    onPress={() => {
+                                        // TODO: Api Call use loading states.
+                                        handlePasskey(checkedAttribute + 1)
+                                        setRequestTransaction(true);
+                                    }}
+                                />
+                                <Dialog.Button
+                                    title="Cancel"
+                                    onPress={() => setIsLevelUpDialogVisible(false)}
+                                />
+                            </Dialog.Actions>
+                        </>
+                    ) : (
+                        <Dialog.Loading />
+                    )}
+                </Dialog>
+            )}
+        </View>
+    );
+};
+
+// some bullshit helper functino to calculate fake values
+const _determineSkillPaymentAmount = (
+    skill: "Agility" | "Stamina" | "Strength" | "Intellect",
+    int: any,
+    str: any,
+    stam: any,
+    agi: any
+) => {
+    let requiredAmount = "Required Amount: \n";
+    switch (skill) {
+        case "Agility":
+            requiredAmount += agi.rubies + ` Rubies\n${agi.lumber} Lumber\n${agi.pearls} Pearls`;
+            return requiredAmount;
+        case "Stamina":
+            requiredAmount += stam.rubies + ` Rubies\n${stam.lumber} Lumber\n${stam.pearls} Pearls`;
+            return requiredAmount;
+        case "Strength":
+            requiredAmount += str.rubies + ` Rubies\n${str.lumber} Lumber\n${str.pearls} Pearls`;
+            return requiredAmount;
+        case "Intellect":
+            requiredAmount += int.rubies + ` Rubies\n${int.lumber} Lumber\n${int.pearls} Pearls`;
+            return requiredAmount;
+        default:
+            console.error(`unknwon skill bruh wtf... ${skill}`);
+    }
+};
+
+const LevelSection = ({ currentLevel }: { currentLevel: number }) => {
+    return (
+        <View
+            style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 4,
+                width: "100%",
+            }}
+        >
+            <Text style={[styles.cardLevel, { fontFamily: "ToysRUs" }]}>
+                Level {currentLevel}
+            </Text>
+            <LinearProgress
+                style={{
+                    flex: 1,
+                    marginVertical: 10,
+                    width: 70,
+                    height: 8,
+                    borderRadius: 8,
+                    marginHorizontal: 4,
+                }}
+                value={Math.random()}
+                variant="determinate"
+                trackColor="red"
+                color="green"
+            />
+            <Text style={[styles.cardLevel, { fontFamily: "ToysRUs" }]}>
+                {" "}
+                {currentLevel + 1}
+            </Text>
+        </View>
+    );
+};
+
+const AttributeSection = ({
+    strength,
+    intellect,
+    agility,
+    stamina,
+}: {
+    strength: number;
+    intellect: number;
+    agility: number;
+    stamina: number;
+}) => {
+    return (
+        <View style={{ width: "100%" }}>
+            <View
+                style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginTop: 20,
+                }}
+            >
+                <Text style={{ fontSize: 18, fontFamily: "ToysRUs" }}>
+                    💪 Strength: {strength}
+                </Text>
+                <Text style={{ fontSize: 18, fontFamily: "ToysRUs" }}>
+                    🏃‍♂️ Stamina: {stamina}
+                </Text>
+            </View>
+            <View
+                style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginTop: 20,
+                }}
+            >
+                <Text style={{ fontSize: 18, fontFamily: "ToysRUs" }}>
+                    🤸‍♂️ Agility: {agility}
+                </Text>
+                <Text style={{ fontSize: 18, fontFamily: "ToysRUs" }}>
+                    🧠 Intellect: {intellect}
+                </Text>
             </View>
         </View>
     );
 };
+
+const ResourceSection = ({ ruby, pearls, lumber }) => {
+    const ResourceItem = ({
+        token,
+        amount,
+    }: {
+        token: Token;
+        amount: number;
+    }) => {
+        const iconMap = new Map([
+            [Token.RUBY, "💎"],
+            [Token.LUMBER, "🪵"],
+            [Token.PEARL, "🫧"],
+        ]);
+
+        return (
+            <View style={{ alignItems: "center" }}>
+                <Text style={{ fontFamily: "ToysRUs", fontSize: 20 }}>{token}</Text>
+                <Text style={{ fontFamily: "ToysRUs", fontSize: 20, marginTop: 16 }}>
+                    {iconMap.get(token)} {amount}
+                </Text>
+            </View>
+        );
+    };
+
+    return (
+        <View style={{ width: "100%" }}>
+            <View
+                style={{
+                    padding: 16,
+                    justifyContent: "space-evenly",
+                    alignItems: "center",
+                    flexDirection: "row",
+                }}
+            >
+                <ResourceItem token={Token.RUBY} amount={ruby} />
+                <ResourceItem token={Token.LUMBER} amount={lumber} />
+                <ResourceItem token={Token.PEARL} amount={pearls} />
+            </View>
+        </View>
+    );
+};
+
+// NOTE FOR PRI: When you click these buttons (define a state above in the ProfileScreen and pass it as a prop to the ResourceSection component to update the displayed )
 
 const styles = StyleSheet.create({
     cardContainer: {
@@ -443,12 +827,23 @@ const styles = StyleSheet.create({
         textAlign: "center",
         borderWidth: 2,
     },
-    column2: {
-        alignItems: "flex-start",
-        marginTop: 4,
+
+    container: {
+        width: "100%",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
     },
-    column3: {
-        alignItems: "flex-start",
-        marginTop: 4,
+    buttonContainer: {
+        flex: 1, // This ensures that the button's container takes up equal space
+        paddingHorizontal: 5, // Optional: Adds some spacing between the buttons
+    },
+    buttonStyle: {
+        backgroundColor: "black",
+        borderRadius: 4,
+    },
+    titleStyle: {
+        fontFamily: "ToysRUs",
+        color: "gold",
     },
 });

@@ -70,5 +70,5 @@ export const attributes = {
   Pepe: { strength: 5, intellect: 20, agility: 12, stamina: 10 },
   PepePig: { strength: 17, intellect: 15, agility: 5, stamina: 10 },
   "Twinky Winky": { strength: 10, intellect: 15, agility: 10, stamina: 12 },
-  "Crypo-Po": { strength: 5, intellect: 15, agility: 15, stamina: 12 },
+  "Cryp-Po": { strength: 5, intellect: 15, agility: 15, stamina: 12 },
 };

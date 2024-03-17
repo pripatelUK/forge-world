@@ -11,11 +11,11 @@ import {
   View,
   Image,
   TouchableOpacity,
-  Button,
   ScrollView,
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import { Button } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ICharacter, RootStackParamList } from "../types/types";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -23,6 +23,7 @@ import { GameContext } from "../contexts/GameContext";
 import { useFonts } from "expo-font";
 // import * as SplashScreen from "expo-splash-screen";
 import { attributes, characters, worlds } from "../shared";
+import { Dialog } from "@rneui/base";
 
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -167,7 +168,7 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
       .useMiddleware(Presets.Middleware.getGasPrice(provider))
       .setCallData(
         simpleAccountAbi.encodeFunctionData('executeBatch', [
-          [gameAddr], [0], [gameContract.interface.encodeFunctionData('userJoinWorld', [charIndex, 1, userName])]
+          [gameAddr], [0], [gameContract.interface.encodeFunctionData('userJoinWorld', [1, charIndex, userName])]
         ]),
       )
       .setNonce(await entrypointContract.getNonce(walletAddress, 0));
@@ -274,20 +275,31 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
     goHome();
   }, []);
 
-  if (transactionStatus == "waiting") {
-    return (
-      <SafeAreaView>
-        <Text>Entering Forge World...</Text>
-        <ActivityIndicator size="large" />
-      </SafeAreaView>
-    )
-  }
-
   return (
     // <SafeAreaView style={{ flex: 1 }} onLayout={onLayoutRootView}>
     <SafeAreaView style={{ flex: 1 }}>
+      {transactionStatus == "waiting" && (
+        <Dialog
+          isVisible={transactionStatus == "waiting"}
+          overlayStyle={{ backgroundColor: "white" }}
+        // onBackdropPress={() => {
+        //   setIsLevelUpDialogVisible(false);
+        // }}
+        >
+          <Dialog.Title
+            title={`Creating Your Character...`}
+            titleStyle={{ fontFamily: "ToysRUs" }}
+          />
+          <Dialog.Loading />
+        </Dialog>
+      )}
       <ScrollView contentContainerStyle={styles.charactersContainer}>
-        <Text style={[styles.selectCharacterText, { fontFamily: "ToysRUs" }]}>
+        <Text
+          style={[
+            { fontFamily: "ToysRUs", marginTop: 20 },
+            styles.selectCharacterText,
+          ]}
+        >
           Enter Your Name
         </Text>
         <TextInput
@@ -296,7 +308,12 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
           value={userName}
           onChangeText={setUserName}
         />
-        <Text style={[styles.selectCharacterText, { fontFamily: "ToysRUs" }]}>
+        <Text
+          style={[
+            styles.selectCharacterText,
+            { fontFamily: "ToysRUs", marginTop: 10 },
+          ]}
+        >
           Select Character
         </Text>
         {characters.map((character: ICharacter, index) => (
@@ -319,23 +336,40 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
             </Text>
           </TouchableOpacity>
         ))}
+        {selectedCharacter && userName.trim() && (
+          <View style={styles.confirmButtonContainer}>
+            <Button
+              title="Confirm"
+              onPress={handleConfirmSelection}
+              type="clear"
+              titleStyle={{
+                fontFamily: "ToysRUs",
+                fontSize: 20,
+                color: "gold",
+              }}
+              buttonStyle={{ width: "100%" }}
+            />
+          </View>
+        )}
       </ScrollView>
-      {selectedCharacter && userName.trim() && (
-        <View style={styles.confirmButtonContainer}>
-          <Button title="Confirm" onPress={handleConfirmSelection} />
-        </View>
-      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  confirmButtonContainer: { marginBottom: 80 },
+  confirmButtonContainer: {
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 4,
+    borderRadius: 5,
+  },
   selectCharacterText: {
     fontSize: 24,
     fontWeight: "bold",
     textAlign: "center",
-    marginVertical: 20,
+
+    marginBottom: 10,
   },
   charactersContainer: {
     alignItems: "center",

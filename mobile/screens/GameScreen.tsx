@@ -62,12 +62,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ navigation }) => {
         fontFamily: "ToysRUs",
       },
       headerTitle: "FoRgEwOrLd",
-
       headerTitleStyle: {
         fontFamily: "ToysRUs",
-        color: "white",
       },
-      headerStyle: { backgroundColor: "black" },
     });
   });
 

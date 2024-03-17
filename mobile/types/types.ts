@@ -8,6 +8,7 @@ export type RootStackParamList = {
   Game: undefined;
   Profile: undefined;
   CharacterSelect: undefined;
+  Leaderboard: undefined;
 };
 
 // Entity Types
@@ -15,7 +16,6 @@ export type RootStackParamList = {
 export interface IGame {
   worlds: IWorld[];
   character?: ICharacter; // TODO: Change to mandatory soon
-  navigation: any;
 }
 
 export interface ICharacter {

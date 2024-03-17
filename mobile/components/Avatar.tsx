@@ -27,10 +27,11 @@ const Avatar = () => {
           padding: 8,
           justifyContent: "center",
           alignItems: "center",
+          flexDirection: "row",
         }}
       >
         <Image style={styles.avatarImage} source={{ uri: player.imgSrc }} />
-        <Text style={{ color: "white", fontFamily: "ToysRUs" }}>
+        <Text style={{ marginLeft: 10, color: "white", fontFamily: "ToysRUs" }}>
           {player.username}
         </Text>
       </View>

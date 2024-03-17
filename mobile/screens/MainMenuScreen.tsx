@@ -47,7 +47,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) =>
   const MAIN_MENU_OPTIONS: string[] = [
     "Enter The Forge",
     "Hero's Hall",
-    "Market Place",
+    // "Market Place",
     "Champion's Ranking",
   ];
 
@@ -113,6 +113,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) =>
     try {
       const gameContract = new ethers.Contract("0xd0483C06D9b48eb45121b3D578B2f8d2000283b5", gameABI.abi, provider);
       let username = await AsyncStorage.getItem(`loginID`);
+      console.log("username", username)
       if (walletAddr && username) {
         const currentWorld = await gameContract.userCurrentWorld(walletAddr);
         const userChar = await gameContract.userCharacter(walletAddr);
@@ -163,17 +164,17 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) =>
         console.log(`Navigating to the forge...`);
         navigation.navigate("Game");
         break;
+      // case MAIN_MENU_OPTIONS[1]:
+      //   console.log(`Navigating to the marketplace...`);
+      //   // navigation.navigate("MarketPlace");
+      //   break;
       case MAIN_MENU_OPTIONS[1]:
-        console.log(`Navigating to the marketplace...`);
-        // navigation.navigate("MarketPlace");
-        break;
-      case MAIN_MENU_OPTIONS[2]:
         console.log(`Navigating to the guild...`);
         navigation.navigate("Profile");
         break;
-      case MAIN_MENU_OPTIONS[3]:
+      case MAIN_MENU_OPTIONS[2]:
         console.log(`Navigating to the leaderboard...`);
-        // navigation.navigate("Leaderboard");
+        navigation.navigate("Leaderboard");
         break;
       default:
         console.log(`Error: Navigating to the unknown: ${selectedOption}`);

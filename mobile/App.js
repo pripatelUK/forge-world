@@ -44,6 +44,7 @@ import { ProfileScreen } from "./components/ProfileScreen";
 import { MainMenuScreen } from "./screens/MainMenuScreen";
 import { CharacterSelectScreen } from "./screens/CharacterSelectScreen";
 import { GameScreen } from "./screens/GameScreen";
+import LeaderboardScreen from "./screens/LeaderboardScreen";
 
 const Stack = createStackNavigator();
 
@@ -52,8 +53,8 @@ const projectId = '49a082ffca38748d2ef8acceca12a92e'
 
 // 2. Create config
 const metadata = {
-  name: 'CrossPay',
-  description: 'CrossPay',
+  name: 'Forge World',
+  description: 'Forge World',
   url: 'https://crosspay.xyz',
   icons: ['https://avatars.githubusercontent.com/u/37784886'],
   redirect: {
@@ -133,6 +134,7 @@ export default function App() {
               component={CharacterSelectScreen}
             />
             <Stack.Screen name={"Game"} component={GameScreen} />
+            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </GameContextProvider>
