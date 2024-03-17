@@ -80,7 +80,7 @@ const World = ({
         ]}
       >
         {isActive && <Avatar />}
-        <Button
+        {!isActive && <Button
           title={title}
           onPress={() => {
             console.log(`Pressed: ${terrain}`);
@@ -91,7 +91,7 @@ const World = ({
           }}
           buttonStyle={[worldStyles.button, { backgroundColor: color }]}
           titleStyle={[worldStyles.buttonTitle, { fontFamily: "ToysRUs" }]}
-        />
+        />}
       </View>
     </ImageBackground>
   );

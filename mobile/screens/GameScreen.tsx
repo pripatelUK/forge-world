@@ -7,7 +7,7 @@ import { IGame, IWorld, RootStackParamList, Token } from "../types/types";
 import { BottomSheet, Dialog } from "@rneui/themed";
 import { useFonts } from "expo-font";
 import { GameContext } from "../contexts/GameContext";
-import { worlds } from "../shared";
+import { attributes, characters, worlds } from "../shared";
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -83,21 +83,33 @@ const Game = ({ worlds, character, navigation }: IGame) => {
   const NOTCH_HEIGHT = insets.top; // Notch height (iPhone island) - perhaps other phones have this...
   console.log(`Notch Height: ${NOTCH_HEIGHT}`);
 
-  const { activeWorld, setActiveWorld } = useContext(GameContext);
+  const { activeWorld, setActiveWorld, setPlayer } = useContext(GameContext);
 
   const [passkeyID, setPasskeyID] = React.useState('');
   const [walletAddr, setWalletAddr] = React.useState('');
   // const [currWorldID, setWorld] = React.useState(0);
 
-  const gameContract = new ethers.Contract("0xd0483C06D9b48eb45121b3D578B2f8d2000283b5", gameABI.abi, provider);
 
   const fetchWorld = async () => {
     try {
-      if (walletAddr) {
+      const gameContract = new ethers.Contract("0xd0483C06D9b48eb45121b3D578B2f8d2000283b5", gameABI.abi, provider);
+      let username = await AsyncStorage.getItem(`loginID`);
+      if (walletAddr && username) {
         const currentWorld = await gameContract.userCurrentWorld(walletAddr);
+        const userChar = await gameContract.userCharacter(walletAddr);
         console.log("currentWorld", currentWorld.toNumber())
+        console.log("userChar", userChar.toNumber())
         // setWorld(currentWorld.toNumber());
         setActiveWorld(worlds[currentWorld.toNumber() - 1]);
+        let char = characters[userChar.toNumber() - 1];
+        setPlayer({
+          username,
+          imgSrc: char.imgSrc,
+          name: char.name,
+          epochsAccrued: undefined,
+          attributes: attributes[char.name],
+          resources: undefined,
+        });
       }
     } catch (error) {
       console.error(error);
@@ -114,11 +126,11 @@ const Game = ({ worlds, character, navigation }: IGame) => {
     React.useCallback(() => {
       const checkPasskey = async () => {
         // console.log(isConnected)
-        let email = await AsyncStorage.getItem(`loginID`);
-        if (email) {
-          let loginPasskeyId = await AsyncStorage.getItem(`${email}_passkeyId`);
-          console.log("loginPasskeyId", email)
-          let wallet = await getAddress((email as string));
+        let username = await AsyncStorage.getItem(`loginID`);
+        if (username) {
+          let loginPasskeyId = await AsyncStorage.getItem(`${username}_passkeyId`);
+          console.log("loginPasskeyId", username)
+          let wallet = await getAddress((username as string));
           // console.log(wallet)
           setWalletAddr(wallet);
           if (loginPasskeyId) {

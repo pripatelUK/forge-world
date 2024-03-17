@@ -22,7 +22,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { GameContext } from "../contexts/GameContext";
 import { useFonts } from "expo-font";
 // import * as SplashScreen from "expo-splash-screen";
-import { worlds } from "../shared";
+import { attributes, characters, worlds } from "../shared";
 
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,43 +39,6 @@ import { VITE_ENTRYPOINT } from '../utils/constants';
 export type CharacterSelectScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, "CharacterSelect">;
 };
-
-const attributes = {
-  "Doge Da Dog": {
-    strength: 12,
-    intellect: 6,
-    agility: 20,
-    stamina: 10,
-  },
-  Bober: {
-    strength: 20,
-    intellect: 8,
-    agility: 8,
-    stamina: 12,
-  },
-  Pepe: { strength: 5, intellect: 20, agility: 12, stamina: 10 },
-  PepePig: { strength: 17, intellect: 15, agility: 5, stamina: 10 },
-  "Twinky Winky": { strength: 10, intellect: 15, agility: 10, stamina: 12 },
-  "Crypo-Po": { strength: 5, intellect: 15, agility: 15, stamina: 12 },
-};
-
-export const CRYPPO_IMAGE_URL =
-  "https://i.seadn.io/gae/N3XeQ7vV6dveAW4AGYY5jlVFiMCFdX_0Pny4rR9s0UJPOnCoN0rY5Gpu1L2gRcWcEMM78mEijTeP_gYRrvjtTt4MN9gcSFcCvYYj?auto=format&dpr=1&w=1000";
-
-export const PEPE_PIG_IMAGE_URL =
-  "https://i.seadn.io/gae/iXO3RI9Qxu90XGxRwWrFA09qROQRqR1eWQ44LvXZqiBiwVMq4a0rttNriv4vyOFAnyXJRt5coMAELgEUixFUSxkWSjZRsUliFHmOdQM?auto=format&dpr=1&w=1000";
-
-export const PEPE_IMAGE_URL =
-  "https://i.seadn.io/gae/xjiFDpUTAijt_wU2So-d11yuq8WKUe7Dr9jOq48wDgsJ8wWgBMqpOnJwo1R3RaZoPtaG4NkAXXI6TBWrf2DWvOSUHIvjyHAWEhjMOv4?auto=format&dpr=1&w=1000";
-
-export const TWINKY_WINKY_IMAGE_URL =
-  "https://i.seadn.io/s/raw/files/7f90b629334bcc87c6118650a180e1f5.png?auto=format&dpr=1&w=1000";
-
-export const BO_BEAR_IMAGE_URL =
-  "https://i.seadn.io/gae/MMb2rnXkS7m5McXvAB8QnRactpITRDKKayftVxhTyID8nYq_wee1REb_gbSRTl0r2kK3MSDjO2qsNc4U3CDd8GcazgfNkVSNgoxqapI?auto=format&dpr=1&w=1000";
-
-export const DOGE_DOG_IMAGE_URL =
-  "https://i.seadn.io/gae/AU-ip8HlUWOfUYwxbgnbJUcRtSauohPG6Wc7yB2HTXvW76CzclL03E52lOG4ehpPY7Skflhw5sfJecLsh4fInrkhe4MomoseJ2JUQg?auto=format&dpr=1&w=1000";
 
 export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
   navigation,
@@ -97,17 +60,6 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
   //   }
   // }, [fontsLoaded]);
 
-  const characters: ICharacter[] = [
-    { name: "Doge Da Dog", imgSrc: DOGE_DOG_IMAGE_URL },
-    { name: "Bober", imgSrc: BO_BEAR_IMAGE_URL },
-    { name: "Pepe", imgSrc: PEPE_IMAGE_URL },
-    { name: "PepePig", imgSrc: PEPE_PIG_IMAGE_URL },
-    { name: "Twinky Winky", imgSrc: TWINKY_WINKY_IMAGE_URL },
-    {
-      name: "Cryp-Po",
-      imgSrc: CRYPPO_IMAGE_URL,
-    },
-  ];
 
   /** Set the active world by default here for the user, can move this if necessary to a better location */
   useEffect(() => {
@@ -144,14 +96,14 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
         resources: undefined,
       });
 
-      handleCreate();
+      handleCreate(selectedCharacter.name);
     } else {
       alert("Please enter your name and select a character.");
     }
   };
 
 
-  const handleCreate = async () => {
+  const handleCreate = async (charName: string) => {
     console.log("lol")
     try {
 
@@ -180,7 +132,7 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
         optionsResponse,
         email: userName,
       });
-      await handleSign(optionsResponse)
+      await handleSign(optionsResponse, charName)
       if (verifyRes.status === 200) {
         // Alert.alert("All good", "success!");
         // //@todo approve
@@ -197,11 +149,12 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
 
   const [transactionStatus, setTransactionStatus] = useState<'waiting' | 'confirmed' | 'error'>();
 
-  const handleSign = async (passkey: string) => {
+  const handleSign = async (passkey: string, charName: string) => {
 
     setTransactionStatus('waiting');
     console.log('yo login', userName);
-
+    const charIndex = characters.findIndex(char => char.name == charName) + 1;
+    console.log("selected char index", charIndex)
     // okay so this essentially just creates an address using the userName
     const walletAddress = await getAddress((userName as string));
     const gameAddr = "0xd0483C06D9b48eb45121b3D578B2f8d2000283b5";
@@ -214,7 +167,7 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
       .useMiddleware(Presets.Middleware.getGasPrice(provider))
       .setCallData(
         simpleAccountAbi.encodeFunctionData('executeBatch', [
-          [gameAddr], [0], [gameContract.interface.encodeFunctionData('userJoinWorld', [1, 1])]
+          [gameAddr], [0], [gameContract.interface.encodeFunctionData('userJoinWorld', [charIndex, 1, userName])]
         ]),
       )
       .setNonce(await entrypointContract.getNonce(walletAddress, 0));
@@ -306,6 +259,7 @@ export const CharacterSelectScreen: React.FC<CharacterSelectScreenProps> = ({
         //@todo
         // setSelectedCharacter(characters[0])
         let char = characters[1];
+        // @todo get all character stats
         setPlayer({
           username: email,
           imgSrc: char.imgSrc,

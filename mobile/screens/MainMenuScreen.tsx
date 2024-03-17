@@ -14,11 +14,18 @@ import {
   TouchableOpacity,
   Animated,
 } from "react-native";
+import { Contract, ethers } from 'ethers';
 import { Button } from "@rneui/themed";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types/types";
 import { GameContext } from "../contexts/GameContext";
 import { useFonts } from "expo-font";
+import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAddress } from "../utils/passkeyUtils";
+import { attributes, characters, worlds } from "../shared";
+import { provider } from "../utils/providers";
+import gameABI from '../abis/forgeworld.json';
 // import * as SplashScreen from "expo-splash-screen";
 
 export type MainMenuScreenProps = {
@@ -26,9 +33,12 @@ export type MainMenuScreenProps = {
 };
 
 export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
-  const { player } = useContext(GameContext);
+  const { player, activeWorld, setActiveWorld, setPlayer } = useContext(GameContext);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const glowAnim = new Animated.Value(1);
+
+  const [passkeyID, setPasskeyID] = React.useState('');
+  const [walletAddr, setWalletAddr] = React.useState('');
 
   const [fontsLoaded] = useFonts({
     ToysRUs: require("../assets/fonts/toys_r_us.ttf"),
@@ -36,9 +46,9 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) =>
 
   const MAIN_MENU_OPTIONS: string[] = [
     "Enter The Forge",
+    "Hero's Hall",
     "Market Place",
-    "Guild",
-    "Leaderboard",
+    "Champion's Ranking",
   ];
 
   // const onLayoutRootView = useCallback(async () => {
@@ -72,6 +82,76 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) =>
       ])
     ).start();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkPasskey = async () => {
+        // console.log(isConnected)
+        let email = await AsyncStorage.getItem(`loginID`);
+        if (email) {
+          let loginPasskeyId = await AsyncStorage.getItem(`${email}_passkeyId`);
+          console.log("loginPasskeyId", email)
+          let wallet = await getAddress((email as string));
+          // console.log(wallet)
+          setWalletAddr(wallet);
+          if (loginPasskeyId) {
+            setPasskeyID(loginPasskeyId)
+          } else {
+            logOut()
+          }
+        }
+      };
+      checkPasskey();
+
+      return () => {
+        // Optional cleanup
+      };
+    }, [passkeyID])
+  );
+
+  const fetchWorld = async () => {
+    try {
+      const gameContract = new ethers.Contract("0xd0483C06D9b48eb45121b3D578B2f8d2000283b5", gameABI.abi, provider);
+      let username = await AsyncStorage.getItem(`loginID`);
+      if (walletAddr && username) {
+        const currentWorld = await gameContract.userCurrentWorld(walletAddr);
+        const userChar = await gameContract.userCharacter(walletAddr);
+        console.log("currentWorld", currentWorld.toNumber())
+        console.log("userChar", userChar.toNumber())
+        // setWorld(currentWorld.toNumber());
+        setActiveWorld(worlds[currentWorld.toNumber() - 1]);
+        let char = characters[userChar.toNumber() - 1];
+        setPlayer({
+          username,
+          imgSrc: char.imgSrc,
+          name: char.name,
+          epochsAccrued: undefined,
+          attributes: attributes[char.name],
+          resources: undefined,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchWorld()
+    }, [walletAddr, passkeyID, activeWorld])
+  );
+
+  const logOut = async () => {
+    let email = await AsyncStorage.getItem(`loginID`);
+    if (email) {
+      await AsyncStorage.removeItem(`loginID`);
+      await AsyncStorage.removeItem(`${email}_passkeyId`);
+    }
+    await AsyncStorage.removeItem(passkeyID);
+    await AsyncStorage.removeItem('@session_token');
+    navigation.navigate('CharacterSelect');
+  };
+
 
   const handleConfirm = () => {
     if (selectedOption) {
@@ -163,6 +243,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) =>
 
       <Text
         style={[styles.trademark, { fontFamily: "ToysRUs", marginBottom: 60 }]}
+        onPress={logOut}
       >
         ETH London 2024
       </Text>
