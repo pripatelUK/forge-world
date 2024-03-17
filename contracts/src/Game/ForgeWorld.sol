@@ -3,16 +3,16 @@ pragma solidity ^0.8.19;
 
 import "./ResourceToken.sol";
 import "./IForgeWorld.sol";
-import {console} from "forge-std/Script.sol";
+import { console } from "forge-std/Script.sol";
 import "ens-contracts/ethregistrar/IETHRegistrarController.sol";
 import "ens-contracts/ethregistrar/IPriceOracle.sol";
 import "ens-contracts/wrapper/INameWrapper.sol";
 
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {IHooks} from "v4-core/interfaces/IHooks.sol";
-import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {CurrencyLibrary, Currency} from "v4-core/types/Currency.sol";
-import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
+import { IPoolManager } from "v4-core/interfaces/IPoolManager.sol";
+import { IHooks } from "v4-core/interfaces/IHooks.sol";
+import { PoolKey } from "v4-core/types/PoolKey.sol";
+import { CurrencyLibrary, Currency } from "v4-core/types/Currency.sol";
+import { PoolModifyLiquidityTest } from "v4-core/test/PoolModifyLiquidityTest.sol";
 
 contract ForgeWorld is IForgeWorld {
     using CurrencyLibrary for Currency;
@@ -27,8 +27,7 @@ contract ForgeWorld is IForgeWorld {
 
     // Cumulative collection mapping for user awarded emissions.
     // epoch => resource => amount
-    mapping(uint256 => mapping(address => uint256))
-        public cumulativeResourceCollectedPerEpoch;
+    mapping(uint256 => mapping(address => uint256)) public cumulativeResourceCollectedPerEpoch;
 
     // User state
     mapping(address => uint256) public userCurrentWorld;
@@ -114,20 +113,18 @@ contract ForgeWorld is IForgeWorld {
         uint256 intellect,
         uint256 agility,
         uint256 stamina
-    ) internal {
+    )
+        internal
+    {
         characterAbilities[character][1] = strength;
         characterAbilities[character][2] = intellect;
         characterAbilities[character][3] = agility;
         characterAbilities[character][4] = stamina;
     }
 
-    function _ensRegistration(
-        address _resolver,
-        address _registrar,
-        address _priceOracle
-    ) external payable {
+    function _ensRegistration(address _resolver, address _registrar, address _priceOracle) external payable {
         string memory name = "forgeworld";
-        uint256 duration = 31536000; // 1 year in seconds
+        uint256 duration = 31_536_000; // 1 year in seconds
         bytes32 secret = 0x0; // No secret required for this example, assume not frontrun.
         address resolver = _resolver; // Change and set resolver
         bytes[] memory data = new bytes[](0); // no DNS records to set initially
@@ -135,21 +132,14 @@ contract ForgeWorld is IForgeWorld {
         uint16 ownerControlledFuses = 0; // Assuming no fuses are controlled by the owner
 
         // Fetch the price for the registration
-        IPriceOracle.Price memory price = IPriceOracle(_priceOracle).price(
-            name,
-            0,
-            duration
-        );
+        IPriceOracle.Price memory price = IPriceOracle(_priceOracle).price(name, 0, duration);
         uint256 totalCost = price.base + price.premium;
 
         // Ensure the contract has enough balance to cover the registration cost
-        require(
-            address(this).balance >= totalCost,
-            "Insufficient balance for registration"
-        );
+        require(address(this).balance >= totalCost, "Insufficient balance for registration");
 
         // Call the register function on the ENS registrar
-        IETHRegistrarController(_registrar).register{value: totalCost}(
+        IETHRegistrarController(_registrar).register{ value: totalCost }(
             name,
             address(this), // Owner of the domain will be this contract
             duration,
@@ -162,16 +152,8 @@ contract ForgeWorld is IForgeWorld {
     }
 
     function getNamehashForForgeworldEth() public pure returns (bytes32) {
-        bytes32 ethNode = keccak256(
-            abi.encodePacked(bytes32(0), keccak256(abi.encodePacked("eth")))
-        );
-        return
-            keccak256(
-                abi.encodePacked(
-                    ethNode,
-                    keccak256(abi.encodePacked("forgeworld"))
-                )
-            );
+        bytes32 ethNode = keccak256(abi.encodePacked(bytes32(0), keccak256(abi.encodePacked("eth"))));
+        return keccak256(abi.encodePacked(ethNode, keccak256(abi.encodePacked("forgeworld"))));
     }
 
     function _setSubdomainOwner(
@@ -180,17 +162,15 @@ contract ForgeWorld is IForgeWorld {
         address subdomainOwner,
         uint32 fuses,
         uint64 expiry
-    ) internal {
+    )
+        internal
+    {
         // Call the setSubnodeOwner function on the INameWrapper contract
-        // Can only call once "forgeworld.eth" is already wrapped and owned by this contract which happens in _ensRegistration function
-        bytes32 subdomainNode = INameWrapper(nameWrapperContract)
-            .setSubnodeOwner(
-                getNamehashForForgeworldEth(),
-                subdomainLabel,
-                subdomainOwner,
-                fuses,
-                expiry
-            );
+        // Can only call once "forgeworld.eth" is already wrapped and owned by this contract which happens in
+        // _ensRegistration function
+        bytes32 subdomainNode = INameWrapper(nameWrapperContract).setSubnodeOwner(
+            getNamehashForForgeworldEth(), subdomainLabel, subdomainOwner, fuses, expiry
+        );
     }
 
     function _deployWorld(string memory name, string memory symbol) internal {
@@ -248,29 +228,16 @@ contract ForgeWorld is IForgeWorld {
         emit UserJoinedWorld(msg.sender, world);
     }
 
-    function userLevelUpAbility(
-        uint256 ability
-    ) public claimRewards validateAbility(ability) {
+    function userLevelUpAbility(uint256 ability) public claimRewards validateAbility(ability) {
         for (uint256 i = 1; i <= worldCounter; i++) {
-            _burnToken(
-                worldToTokenResource[i],
-                getLevelUpCost(ability, i, msg.sender)
-            );
+            _burnToken(worldToTokenResource[i], getLevelUpCost(ability, i, msg.sender));
         }
         userAbilities[msg.sender][ability]++;
     }
 
-    function getLevelUpCost(
-        uint256 ability,
-        uint256 resource,
-        address user
-    ) public view returns (uint256) {
+    function getLevelUpCost(uint256 ability, uint256 resource, address user) public view returns (uint256) {
         uint256 baseAmount = 5e18 * userAbilities[user][ability];
-        uint256 rand = uint(
-            keccak256(
-                abi.encodePacked(user, resource, userAbilities[user][ability])
-            )
-        ) % (baseAmount);
+        uint256 rand = uint256(keccak256(abi.encodePacked(user, resource, userAbilities[user][ability]))) % (baseAmount);
 
         bool shouldAdd = rand & 1 == 1;
 
@@ -282,9 +249,7 @@ contract ForgeWorld is IForgeWorld {
     }
 
     // function to move worlds. Moving worlds will forfeit all resources you are collecting this epoch
-    function userMoveWorld(
-        uint256 world
-    ) public validateWorld(world) claimRewards {
+    function userMoveWorld(uint256 world) public validateWorld(world) claimRewards {
         // Could impose cost on user for moving worlds.
         uint256 currentWorld = userCurrentWorld[msg.sender];
         worldPopulation[currentWorld]--;
@@ -296,27 +261,17 @@ contract ForgeWorld is IForgeWorld {
         emit UserMovedWorld(msg.sender, currentWorld, world);
     }
 
-    function userClaimRewards()
-        public
-        tryIncreaseEpoch
-        requireUserExists(msg.sender)
-    {
+    function userClaimRewards() public tryIncreaseEpoch requireUserExists(msg.sender) {
         uint256 lastEpochClaimed = userLastEpochClaimed[msg.sender];
         if (lastEpochClaimed < epoch) {
             if (epoch - lastEpochClaimed > 12) {
                 // can only claim from last 12 epochs
                 lastEpochClaimed = epoch - 12;
             }
-            address resourceAddress = worldToTokenResource[
-                userCurrentWorld[msg.sender]
-            ];
+            address resourceAddress = worldToTokenResource[userCurrentWorld[msg.sender]];
 
-            uint256 reward = cumulativeResourceCollectedPerEpoch[epoch][
-                resourceAddress
-            ] -
-                cumulativeResourceCollectedPerEpoch[lastEpochClaimed][
-                    resourceAddress
-                ];
+            uint256 reward = cumulativeResourceCollectedPerEpoch[epoch][resourceAddress]
+                - cumulativeResourceCollectedPerEpoch[lastEpochClaimed][resourceAddress];
 
             _mintToken(resourceAddress, msg.sender, reward);
 
@@ -334,23 +289,13 @@ contract ForgeWorld is IForgeWorld {
 
             epoch++;
 
-            for (uint i = 0; i < worlds.length; i++) {
+            for (uint256 i = 0; i < worlds.length; i++) {
                 uint256 world = worlds[i];
 
-                uint256 psudeoRandomMultipler = (uint(
-                    keccak256(
-                        abi.encodePacked(
-                            block.timestamp,
-                            msg.sender,
-                            block.prevrandao,
-                            i
-                        )
-                    )
-                ) % 9) + 1;
+                uint256 psudeoRandomMultipler =
+                    (uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, block.prevrandao, i))) % 9) + 1;
 
-                uint256 incrementAmount = (globalPopulation *
-                    psudeoRandomMultipler *
-                    100e18) / worldCounter;
+                uint256 incrementAmount = (globalPopulation * psudeoRandomMultipler * 100e18) / worldCounter;
 
                 address resourceAddress = worldToTokenResource[world];
                 uint256 population = worldPopulation[world];
@@ -360,10 +305,7 @@ contract ForgeWorld is IForgeWorld {
                 }
 
                 cumulativeResourceCollectedPerEpoch[epoch][resourceAddress] =
-                    cumulativeResourceCollectedPerEpoch[epoch - 1][
-                        resourceAddress
-                    ] +
-                    (incrementAmount / population);
+                    cumulativeResourceCollectedPerEpoch[epoch - 1][resourceAddress] + (incrementAmount / population);
             }
             emit EpochIncreased(epoch);
         }
@@ -380,10 +322,7 @@ contract ForgeWorld is IForgeWorld {
     IPoolManager manager = IPoolManager(address(0x01));
     PoolModifyLiquidityTest lpRouter = PoolModifyLiquidityTest(address(0x02));
 
-    function create_pool_and_seed_pool(
-        address token0,
-        address token1
-    ) external {
+    function create_pool_and_seed_pool(address token0, address token1) external {
         // sort tokens
         if (token0 > token1) {
             (token0, token1) = (token1, token0);
@@ -395,7 +334,7 @@ contract ForgeWorld is IForgeWorld {
         int24 tickSpacing = 60;
 
         // floor(sqrt(1) * 2^96)
-        uint160 sqrtPriceX96 = 79228162514264337593543950336;
+        uint160 sqrtPriceX96 = 79_228_162_514_264_337_593_543_950_336;
 
         // Assume the custom hook requires a timestamp when initializing it
         bytes memory hookData = abi.encode(block.timestamp);
@@ -419,11 +358,7 @@ contract ForgeWorld is IForgeWorld {
         int256 liquidity = 10e27;
         lpRouter.modifyLiquidity(
             pool,
-            IPoolManager.ModifyLiquidityParams({
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                liquidityDelta: liquidity
-            }),
+            IPoolManager.ModifyLiquidityParams({ tickLower: tickLower, tickUpper: tickUpper, liquidityDelta: liquidity }),
             new bytes(0)
         );
     }
